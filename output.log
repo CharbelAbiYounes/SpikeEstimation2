@@ -62,9 +62,10 @@ WARNING: Method definition eigvals(ApproxFunBase.Operator{T} where T, Integer) i
 ERROR: Method overwriting is not permitted during Module precompilation. Use `__precompile__(false)` to opt-out of precompilation.
 WARNING: Method definition eigvals(ApproxFunBase.Operator{T} where T, Integer) in module ApproxFunBase at /mmfs1/home/cyounes/.julia/packages/ApproxFunBase/wPgxd/src/eigen.jl:4 overwritten in module ApproxFun at /mmfs1/home/cyounes/.julia/packages/ApproxFun/GDlBJ/src/Extras/eigs.jl:4.
 ERROR: Method overwriting is not permitted during Module precompilation. Use `__precompile__(false)` to opt-out of precompilation.
-ERROR: LoadError: UndefVarError: `quantMP` not defined
+Block 1 with δ=1.5
+ERROR: LoadError: UndefVarError: `AvrgEvalTime` not defined
 Stacktrace:
  [1] top-level scope
-   @ ~/SpikeEstimation2/Example2.jl:34
-in expression starting at /mmfs1/home/cyounes/SpikeEstimation2/Example2.jl:34
-srun: error: n3454: task 0: Exited with exit code 1
+   @ ~/SpikeEstimation2/Example2.jl:132
+in expression starting at /mmfs1/home/cyounes/SpikeEstimation2/Example2.jl:102
+srun: error: n3446: task 0: Exited with exit code 1

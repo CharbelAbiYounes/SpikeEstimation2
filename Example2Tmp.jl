@@ -14,7 +14,7 @@ using LinearAlgebra, Distributions, Random, Plots, LaTeXStrings, DataFrames, CSV
 imgFolder = "Figures"
 tableFolder = "Tables"
 
-num_procs = 80
+num_procs = 24
 addprocs(num_procs-1)
 
 @everywhere begin
@@ -23,12 +23,12 @@ addprocs(num_procs-1)
     include("AltMeth.jl")
 end
 
-logfile = open("progress.log", "w")
+logfile = open("Tmpprogress.log", "w")
 N = 8000 # Increase size
 d = 0.5
 M = convert(Int64,ceil(N/d))
 σ = 1
-δvec = vcat(1.5:0.01:3)
+δvec = vcat(1.5:0.01:2.3)
 σvec = σ^2*ones(N)
 sqrtΣ = Diagonal(sqrt.(σvec))
 MPquants = quantMP(N,d)
@@ -67,25 +67,25 @@ EvalTime = zeros(Float64,lenδ)
     end
     time_CholList1 = @elapsed begin
         TChol,L_list = CholList(W,tol,k,jmp,max_iter,vecNbr[1])
-        Nbr,Loc = EstimSpike(TChol,N,c=1.0)
+        Nbr,Loc = EstimSpike(TChol,N,c=0.25)
         locPercent[3] = Nbr==SpikeNbr ? 1 : 0
         locAvrg[3] = Nbr
     end
     time_CholList2 = @elapsed begin
         TChol,L_list = CholList(W,tol,k,jmp,max_iter,vecNbr[2])
-        Nbr,Loc = EstimSpike(TChol,N,c=1.0)
+        Nbr,Loc = EstimSpike(TChol,N,c=0.25)
         locPercent[4] = Nbr==SpikeNbr ? 1 : 0
         locAvrg[4] = Nbr
     end
     time_CholList3 = @elapsed begin
         TChol,L_list = CholList(W,tol,k,jmp,max_iter,vecNbr[3])
-        Nbr,Loc = EstimSpike(TChol,N,c=1.0)
+        Nbr,Loc = EstimSpike(TChol,N,c=0.25)
         locPercent[5] = Nbr==SpikeNbr ? 1 : 0
         locAvrg[5] = Nbr
     end
     time_CholList4 = @elapsed begin
         TChol,L_list = CholList(W,tol,k,jmp,max_iter,vecNbr[4])
-        Nbr,Loc = EstimSpike(TChol,N,c=1.0)
+        Nbr,Loc = EstimSpike(TChol,N,c=0.25)
         locPercent[6] = Nbr==SpikeNbr ? 1 : 0
         locAvrg[6] = Nbr
     end
@@ -123,12 +123,12 @@ for i=1:lenδ
     write(logfile, msg)
     flush(logfile)
     tb = DataFrame(A=δvec[1:i],B=Percent[1:i,1],C=Percent[1:i,2],D=Percent[1:i,3],E=Percent[1:i,4],F=Percent[1:i,5],G=Percent[1:i,6])
-    CSV.write(joinpath(tableFolder,"NormPercent.csv"),tb)
+    CSV.write(joinpath(tableFolder,"TmpNormPercent.csv"),tb)
     tb = DataFrame(A=δvec[1:i],B=Avrg[1:i,1],C=Avrg[1:i,2],D=Avrg[1:i,3],E=Avrg[1:i,4],F=Avrg[1:i,5],G=Avrg[1:i,6])
-    CSV.write(joinpath(tableFolder,"NormAvrg.csv"),tb)
+    CSV.write(joinpath(tableFolder,"TmpNormAvrg.csv"),tb)
     tb = DataFrame(A=δvec[1:i],B=Time[1:i,1],C=Time[1:i,2],D=Time[1:i,3],E=Time[1:i,4],F=Time[1:i,5],G=Time[1:i,6])
-    CSV.write(joinpath(tableFolder,"NormTime.csv"),tb)
+    CSV.write(joinpath(tableFolder,"TmpNormTime.csv"),tb)
     tb = DataFrame(A=δvec[1:i],B=EvalTime[1:i])
-    CSV.write(joinpath(tableFolder,"NormEvalTime.csv"),tb)
+    CSV.write(joinpath(tableFolder,"TmpNormEvalTime.csv"),tb)
 end
 close(logfile)

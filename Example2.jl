@@ -29,7 +29,7 @@ N = 8000 # Increase size
 d = 0.5
 M = convert(Int64,ceil(N/d))
 σ = 1
-δvec = vcat(1.5:0.05:3)
+δvec = vcat(1.5:0.01:3)
 σvec = σ^2*ones(N)
 sqrtΣ = Diagonal(sqrt.(σvec))
 MPquants = quantMP(N,d)
@@ -129,7 +129,7 @@ for i=1:lenδ
     CSV.write(joinpath(tableFolder,"NormAvrg.csv"),tb)
     tb = DataFrame(A=δvec[1:i],B=Time[1:i,1],C=Time[1:i,2],D=Time[1:i,3],E=Time[1:i,4],F=Time[1:i,5],G=Time[1:i,6])
     CSV.write(joinpath(tableFolder,"NormTime.csv"),tb)
-    tb = DataFrame(A=δvec[1:i],B=AvrgEvalTime[1:i])
+    tb = DataFrame(A=δvec[1:i],B=EvalTime[1:i])
     CSV.write(joinpath(tableFolder,"NormEvalTime.csv"),tb)
 end
 close(logfile)

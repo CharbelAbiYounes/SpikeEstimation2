@@ -20,6 +20,7 @@ addprocs(num_procs-1)
 @everywhere begin
     using LinearAlgebra, Distributions, Random
     include("SpikeEstimation.jl")
+    include("AltMeth.jl")
 end
 
 logfile = open("progress.log", "w")

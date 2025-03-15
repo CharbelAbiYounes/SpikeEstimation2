@@ -1,82 +1,134 @@
-using LinearAlgebra, Plots, Distributions, LaTeXStrings, Random, Optim, TracyWidomBeta, DataFrames, CSV
-include("SpikeEstimation.jl")
-include("AltMeth.jl")
+using Pkg
+Pkg.add("LinearAlgebra")
+Pkg.add("Distributions")
+Pkg.add("Random")
+Pkg.add("Plots")
+Pkg.add("LaTeXStrings")
+Pkg.add("DataFrames")
+Pkg.add("CSV")
+Pkg.add("Distributed")
+Pkg.add("Optim")
+Pkg.add("TracyWidomBeta")
 
+using LinearAlgebra, Distributions, Random, Plots, LaTeXStrings, DataFrames, CSV, Distributed, Optim, TracyWidomBeta
 imgFolder = "Figures"
 tableFolder = "Tables"
 
-N = 1000
+num_procs = 80
+addprocs(num_procs-1)
+
+@everywhere begin
+    using LinearAlgebra, Distributions, Random
+    include("SpikeEstimation.jl")
+end
+
+logfile = open("progress.log", "w")
+
+N = 8000 # Increase size
 d = 0.5
 M = convert(Int64,ceil(N/d))
-# Normal
-X = randn(N,M)
-# # Rademacher
-# X = 2 .* rand(Bool, N, M) .- 1
-# # Uniform
-# UnifDist = Uniform(-sqrt(3),sqrt(3))
-# X = rand(UnifDist,N,M)
-# #Beta
-# BetaDist = Beta(0.5, 0.5)
-# X = rand(BetaDist, N, M)
-# X = 2*X .-1
 σ = 1
-δvec = 1:0.1:5 # Increase mesh
+δvec = vcat(1.5:0.05:3)
 σvec = σ^2*ones(N)
+sqrtΣ = Diagonal(sqrt.(σvec))
 MPquants = quantMP(N,d)
 jmp = 5
-tol = 2.5/sqrt(N)
-max_iter = convert(Int64,ceil(max(6*log(N)+24,N/4,sqrt(N))))
-vecNbr = 1
+tol = 3/sqrt(N)
+t = TWquant(0.1)
+max_iter = convert(Int64,ceil(max(6*log(N)+24,sqrt(N))))
+k = convert(Int64,floor(log(N)/2))
+vecNbr = [1,50,100,200]
+t = TWquant(0.1)
 lenδ = length(δvec)
-Percent = zeros(Float64,lenδ,5)
-Avrg = zeros(Float64,lenδ,5)
-SampleNbr = 10 # Increase sample nbr
+SampleNbr = 100 # Increase sample nbr
+Percent = zeros(Float64,lenδ,6)
+Avrg = zeros(Float64,lenδ,6)
+Time = zeros(Float64,lenδ,6)
+EvalTime = zeros(Float64,lenδ)
+
+@everywhere function process_sample(N, M, d, sqrtΣ, SpikeNbr, MPquants, t, tol, k, jmp, max_iter, vecNbr)
+    locPercent = zeros(Float64,6)
+    locAvrg = zeros(Float64,6)
+    locTime = zeros(Float64,6)
+    X = randn(Float64,N,M)
+    W = sqrtΣ*X*X'*sqrtΣ/M |> Symmetric
+    time_evals = @elapsed begin
+        evals = eigvals(W)
+    end
+    time_BEMA0 = @elapsed begin
+        BEMA0Out = BEMA0(evals,MPquants,d,0.2,t)
+        locPercent[1] = BEMA0Out==SpikeNbr ? 1 : 0
+        locAvrg[1] = BEMA0Out
+    end
+    time_DDPA = @elapsed begin
+        DDPAOut = DDPA(evals,N,d)
+        locPercent[2] = DDPAOut==SpikeNbr ? 1 : 0
+        locAvrg[2] = DDPAOut
+    end
+    time_CholList1 = @elapsed begin
+        TChol,L_list = CholList(W,tol,k,jmp,max_iter,vecNbr[1])
+        Nbr,Loc = EstimSpike(TChol,N,c=1.0)
+        locPercent[3] = Nbr==SpikeNbr ? 1 : 0
+        locAvrg[3] = Nbr
+    end
+    time_CholList2 = @elapsed begin
+        TChol,L_list = CholList(W,tol,k,jmp,max_iter,vecNbr[2])
+        Nbr,Loc = EstimSpike(TChol,N,c=1.0)
+        locPercent[4] = Nbr==SpikeNbr ? 1 : 0
+        locAvrg[4] = Nbr
+    end
+    time_CholList3 = @elapsed begin
+        TChol,L_list = CholList(W,tol,k,jmp,max_iter,vecNbr[3])
+        Nbr,Loc = EstimSpike(TChol,N,c=1.0)
+        locPercent[5] = Nbr==SpikeNbr ? 1 : 0
+        locAvrg[5] = Nbr
+    end
+    time_CholList4 = @elapsed begin
+        TChol,L_list = CholList(W,tol,k,jmp,max_iter,vecNbr[4])
+        Nbr,Loc = EstimSpike(TChol,N,c=1.0)
+        locPercent[6] = Nbr==SpikeNbr ? 1 : 0
+        locAvrg[6] = Nbr
+    end
+    locTime[1] = time_evals+time_BEMA0
+    locTime[2] = time_evals+time_DDPA
+    locTime[3] = time_CholList1
+    locTime[4] = time_CholList2
+    locTime[5] = time_CholList3
+    locTime[6] = time_CholList4
+    return (locPercent,locAvrg,locTime,time_evals)
+end
+
 for i=1:lenδ
     δ = δvec[i]
-    σvec[1:3] = [6,5,δ]
-    sqrtΣ = Diagonal(sqrt.(σvec))
-    W = sqrtΣ*(1/M*X*X')*sqrtΣ'|>Symmetric
-    evals = eigvals(W)
-    count = zeros(Float64,5)
-    Sum = zeros(Float64,5)
+    sqrtΣ[1,1] = sqrt(6)
+    sqrtΣ[2,2] = sqrt(5)
+    sqrtΣ[3,3] = sqrt(δ)
     if δ≤1+sqrt(d)
         SpikeNbr = 2
     else
         SpikeNbr = 3
     end
-    for j=1:SampleNbr
-        BEMA0Out = BEMA0(evals,MPquants,d,0.2)
-        count[1] = BEMA0Out==SpikeNbr ? count[1]+1 : count[1]
-        Sum[1] += BEMA0Out
-        BEMAOut = BEMA(evals,0.2,N,d;SampleNbr=200)
-        count[2] = BEMAOut==SpikeNbr ? count[2]+1 : count[2]
-        Sum[2] += BEMAOut
-        PassYaoOut = PassYao(evals,d,N;SampleNbr=200)
-        count[3] = PassYaoOut==SpikeNbr ? count[3]+1 : count[3]
-        Sum[3] += PassYaoOut
-        DDPAOut = DDPA(evals,N,d)
-        count[4] = DDPAOut==SpikeNbr ? count[4]+1 : count[4]
-        Sum[4] += DDPAOut
-        TChol,L_list = CholList(W,tol,k,jmp,max_iter,vecNbr)
-        Nbr,Loc = EstimSpike(TChol,N)
-        count[5] = Nbr==SpikeNbr ? count[5]+1 : count[5]
-        Sum[5] += Nbr
-    end
-    Percent[i,:] = count/SampleNbr
-    Avrg[i,:] = Sum/SampleNbr
+    results = pmap(_-> process_sample(N, M, d, sqrtΣ, SpikeNbr, MPquants, t, tol, k, jmp, max_iter, vecNbr), 1:SampleNbr)
+    locPercent = first.(results)
+    locAvrg = getindex.(results, 2)
+    locTime = getindex.(results, 3)
+    loctime_evals = getindex.(results, 4)
+
+    Percent[i,:] = vec(reduce( .+, locPercent))/SampleNbr
+    Avrg[i,:] = vec(reduce( .+, locAvrg))/SampleNbr
+    Time[i,:] = vec(reduce( .+, locTime))/SampleNbr
+    EvalTime[i] = sum(loctime_evals)/SampleNbr
+    msg = "Block 1 with δ=$(δ)\n"
+    print(msg)
+    write(logfile, msg)
+    flush(logfile)
+    tb = DataFrame(A=δvec[1:i],B=Percent[1:i,1],C=Percent[1:i,2],D=Percent[1:i,3],E=Percent[1:i,4],F=Percent[1:i,5],G=Percent[1:i,6])
+    CSV.write(joinpath(tableFolder,"NormPercent.csv"),tb)
+    tb = DataFrame(A=δvec[1:i],B=Avrg[1:i,1],C=Avrg[1:i,2],D=Avrg[1:i,3],E=Avrg[1:i,4],F=Avrg[1:i,5],G=Avrg[1:i,6])
+    CSV.write(joinpath(tableFolder,"NormAvrg.csv"),tb)
+    tb = DataFrame(A=δvec[1:i],B=Time[1:i,1],C=Time[1:i,2],D=Time[1:i,3],E=Time[1:i,4],F=Time[1:i,5],G=Time[1:i,6])
+    CSV.write(joinpath(tableFolder,"NormTime.csv"),tb)
+    tb = DataFrame(A=δvec[1:i],B=AvrgEvalTime[1:i])
+    CSV.write(joinpath(tableFolder,"NormEvalTime.csv"),tb)
 end
-p = plot(x,Percent[:,5],linecolor=:red,linewidth=3,label="",ylabel="Probability of correct estimation",xlabel=L"\delta",legend=:topright,framestyle=:box)
-p = scatter!(x,Percent[:,5],markersize=5,color=:red,marker=:circ,label="Lanczos")
-p = plot!(x,Percent[:,1],linecolor=:blue,linewidth=3,label="")
-p = scatter!(x,Percent[:,1],markersize=5,color=:blue,marker=:diamond,label="BEMA0")
-p = plot!(x,Percent[:,2],linecolor=:green,linewidth=3,label="")
-p = scatter!(x,Percent[:,2],markersize=5,color=:green,marker=:square,label="BEMA")
-p = plot!(x,Percent[:,3],linecolor=:orange,linewidth=3,label="")
-p = scatter!(x,Percent[:,3],markersize=5,color=:orange,marker=:star6,label="PassYao")
-p = plot!(x,Percent[:,4],linecolor=:purple,linewidth=3,label="")
-p = scatter!(x,Percent[:,4],markersize=5,color=:purple,marker=:xcross,label="DDPA")
-savefig(p1,joinpath(imgFolder, "Ex2Fig1.png"))
-tb1 = DataFrame(A=δvec,B=Percent[:,1],C=Percent[:,2],D=Percent[:,3],E=Percent[:,4],F=Percent[:,5])
-CSV.write(joinpath(tableFolder,"Ex2CountTb1.csv"),tb1)
-tb2 = DataFrame(A=δvec,B=Avrg[:,1],C=Avrg[:,2],D=Avrg[:,3],E=Avrg[:,4],F=Avrg[:,5])
-CSV.write(joinpath(tableFolder,"Ex2AvrgTb1.csv"),tb2)
+close(logfile)

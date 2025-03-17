@@ -14,7 +14,7 @@ using LinearAlgebra, Distributions, Random, Plots, LaTeXStrings, DataFrames, CSV
 imgFolder = "Figures"
 tableFolder = "Tables"
 
-num_procs = 80
+num_procs = 90
 addprocs(num_procs-1)
 
 @everywhere begin
@@ -50,7 +50,7 @@ EvalTime = zeros(Float64,lenδ)
     locPercent = zeros(Float64,6)
     locAvrg = zeros(Float64,6)
     locTime = zeros(Float64,6)
-    X = randn(Float64,N,M)
+    X = Float64.(2 .* rand(Bool, N, M) .- 1)
     W = sqrtΣ*X*X'*sqrtΣ/M |> Symmetric
     time_evals = @elapsed begin
         evals = eigvals(W)
@@ -118,17 +118,17 @@ for i=1:lenδ
     Avrg[i,:] = vec(reduce( .+, locAvrg))/SampleNbr
     Time[i,:] = vec(reduce( .+, locTime))/SampleNbr
     EvalTime[i] = sum(loctime_evals)/SampleNbr
-    msg = "Block 1 with δ=$(δ)\n"
+    msg = "δ=$(δ)\n"
     print(msg)
     write(logfile, msg)
     flush(logfile)
     tb = DataFrame(A=δvec[1:i],B=Percent[1:i,1],C=Percent[1:i,2],D=Percent[1:i,3],E=Percent[1:i,4],F=Percent[1:i,5],G=Percent[1:i,6])
-    CSV.write(joinpath(tableFolder,"NormPercent.csv"),tb)
+    CSV.write(joinpath(tableFolder,"FastRadPercent.csv"),tb)
     tb = DataFrame(A=δvec[1:i],B=Avrg[1:i,1],C=Avrg[1:i,2],D=Avrg[1:i,3],E=Avrg[1:i,4],F=Avrg[1:i,5],G=Avrg[1:i,6])
-    CSV.write(joinpath(tableFolder,"NormAvrg.csv"),tb)
+    CSV.write(joinpath(tableFolder,"FastRadAvrg.csv"),tb)
     tb = DataFrame(A=δvec[1:i],B=Time[1:i,1],C=Time[1:i,2],D=Time[1:i,3],E=Time[1:i,4],F=Time[1:i,5],G=Time[1:i,6])
-    CSV.write(joinpath(tableFolder,"NormTime.csv"),tb)
+    CSV.write(joinpath(tableFolder,"FastRadTime.csv"),tb)
     tb = DataFrame(A=δvec[1:i],B=EvalTime[1:i])
-    CSV.write(joinpath(tableFolder,"NormEvalTime.csv"),tb)
+    CSV.write(joinpath(tableFolder,"FastRadEvalTime.csv"),tb)
 end
 close(logfile)

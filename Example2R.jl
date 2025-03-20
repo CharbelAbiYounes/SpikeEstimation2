@@ -14,7 +14,14 @@ using LinearAlgebra, Distributions, Random, Plots, LaTeXStrings, DataFrames, CSV
 imgFolder = "Figures"
 tableFolder = "Tables"
 
-num_procs = 80
+f = open("hosts.txt")
+nodes = readlines(f)
+close(f)
+
+num_procs = 30
+addprocs([nodes[2] for j in 1:num_procs],tunnel=true)
+addprocs([nodes[3] for j in 1:num_procs],tunnel=true)
+addprocs([nodes[4] for j in 1:num_procs],tunnel=true)
 addprocs(num_procs-1)
 
 @everywhere begin
@@ -23,7 +30,7 @@ addprocs(num_procs-1)
     include("AltMeth.jl")
 end
 
-logfile = open("progressRad.log", "w")
+logfile = open("progressBeta.log", "w")
 N = 8000 # Increase size
 d = 0.5
 M = convert(Int64,ceil(N/d))
@@ -123,12 +130,12 @@ for i=1:lenδ
     write(logfile, msg)
     flush(logfile)
     tb = DataFrame(A=δvec[1:i],B=Percent[1:i,1],C=Percent[1:i,2],D=Percent[1:i,3],E=Percent[1:i,4],F=Percent[1:i,5],G=Percent[1:i,6])
-    CSV.write(joinpath(tableFolder,"RadPercent.csv"),tb)
+    CSV.write(joinpath(tableFolder,"BetaPercent.csv"),tb)
     tb = DataFrame(A=δvec[1:i],B=Avrg[1:i,1],C=Avrg[1:i,2],D=Avrg[1:i,3],E=Avrg[1:i,4],F=Avrg[1:i,5],G=Avrg[1:i,6])
-    CSV.write(joinpath(tableFolder,"RadAvrg.csv"),tb)
+    CSV.write(joinpath(tableFolder,"BetaAvrg.csv"),tb)
     tb = DataFrame(A=δvec[1:i],B=Time[1:i,1],C=Time[1:i,2],D=Time[1:i,3],E=Time[1:i,4],F=Time[1:i,5],G=Time[1:i,6])
-    CSV.write(joinpath(tableFolder,"RadTime.csv"),tb)
+    CSV.write(joinpath(tableFolder,"BetaTime.csv"),tb)
     tb = DataFrame(A=δvec[1:i],B=EvalTime[1:i])
-    CSV.write(joinpath(tableFolder,"RadEvalTime.csv"),tb)
+    CSV.write(joinpath(tableFolder,"BetaEvalTime.csv"),tb)
 end
 close(logfile)

@@ -118,3 +118,6 @@ ERROR: Method overwriting is not permitted during Module precompilation. Use `__
 δ=2.03
 δ=2.04
 δ=2.05
+δ=2.06
+srun: Job step aborted: Waiting up to 12 seconds for job step to finish.
+slurmstepd: error: *** STEP 24865742.0 ON g3013 CANCELLED AT 2025-03-17T10:55:02 ***
